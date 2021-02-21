@@ -9,7 +9,8 @@
 		http://mods.simplemachines.org/docs/manual-install.php
 
 	cb|GeSHi-mod (c) 2012-2013, codebirth
- 	Website: http://codebirth.com
+	(c) 2021, alkisg
+ 	Website: https://github.com/alkisg/smf-geshi
 
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 
@@ -17,7 +18,7 @@
 
 	<id>codebirth:geshi_mod</id>
 	<name>cb|GeSHi-mod</name>
-	<version>1.2</version>
+	<version>1.3</version>
 	<type>modification</type>
 
 	<install for="2.*">

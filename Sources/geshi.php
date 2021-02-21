@@ -614,7 +614,7 @@ class GeSHi {
      */
     function GeSHi($source = '', $language = '', $path = '') {
         if (!empty($source)) {
-            $this->set_source($source);
+            $this->set_source(trim($source));
         }
         if (!empty($language)) {
             $this->set_language($language);
