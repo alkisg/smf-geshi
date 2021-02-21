@@ -40,6 +40,24 @@
 // version
 //
 
+function my_strtoupper($str) {
+    static $greek_mapping = array(
+    'α' => 'Α', 'ά' => 'Α', 'β' => 'Β', 'γ' => 'Γ', 'δ' => 'Δ', 'ε' => 'Ε',
+    'έ' => 'Ε', 'ζ' => 'Ζ', 'η' => 'Η', 'ή' => 'Η', 'θ' => 'Θ', 'ι' => 'Ι',
+    'ί' => 'Ι', 'ϊ' => 'Ι', 'ΐ' => 'Ι', 'κ' => 'Κ', 'λ' => 'Λ', 'μ' => 'Μ',
+    'ν' => 'Ν', 'ξ' => 'Ξ', 'ο' => 'Ο', 'ό' => 'Ο', 'π' => 'Π', 'ρ' => 'Ρ',
+    'σ' => 'Σ', 'ς' => 'Σ', 'τ' => 'Τ', 'υ' => 'Υ', 'ύ' => 'Υ', 'ϋ' => 'Υ',
+    'ΰ' => 'Υ', 'φ' => 'Φ', 'χ' => 'Χ', 'ψ' => 'Ψ', 'ω' => 'Ω', 'ώ' => 'Ω'
+    );
+    return strtr($str, $greek_mapping);
+}
+
+// Reimplement strcasecmp in order to support Greek characters
+function my_strcasecmp($str1, $str2) {
+    print("WTH");
+    return strcasecmp(my_strtoupper($str1), my_strtoupper($str2));
+}
+
 /** The version of this GeSHi file */
 define('GESHI_VERSION', '1.0.8.11');
 
@@ -677,6 +695,9 @@ class GeSHi {
         if ($force_reset) {
             $this->loaded_language = false;
         }
+
+        $language = str_replace('ΓΛΩΣΣΑ', 'glossa', $language);
+        $language = str_replace('Ψευδογλώσσα', 'pseudoglossa', $language);
 
         //Clean up the language name to prevent malicious code injection
         $language = preg_replace('#[^a-zA-Z0-9\-_]#', '', $language);
@@ -3268,7 +3289,7 @@ class GeSHi {
                 if (!$this->language_data['CASE_SENSITIVE'][$k] &&
                     strpos($this->language_data['URLS'][$k], '{FNAME}') !== false) {
                     foreach ($this->language_data['KEYWORDS'][$k] as $word) {
-                        if (strcasecmp($word, $keyword_match) == 0) {
+                        if (my_strcasecmp($word, $keyword_match) == 0) {
                             break;
                         }
                     }
