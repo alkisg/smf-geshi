@@ -1,0 +1,353 @@
+<?xml version="1.0"?>
+<!DOCTYPE modification SYSTEM "http://www.simplemachines.org/xml/modification">
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	Modification file for cb|GeSHi-mod modification
+
+	ATTENTION: If you are trying to install this manually, you should try
+	the package manager.  If it will not work for you, please take a look
+	at the following for information on this format:
+		http://mods.simplemachines.org/docs/manual-install.php
+
+	cb|GeSHi-mod (c) 2012, codebirth
+ 	Website: http://codebirth.com
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+
+<modification xmlns="http://www.simplemachines.org/xml/modification" xmlns:smf="http://www.simplemachines.org/">
+
+	<id>codebirth:geshi_mod</id>
+	<version>1.2</version>
+
+	<file name="$sourcedir/Subs.php">
+		<operation>
+			<search position="replace"><![CDATA[
+			array(
+				'tag' => 'code',
+				'type' => 'unparsed_equals_content',
+				'content' => '<div class="codeheader">' . $txt['code'] . ': ($2) <a href="#" onclick="return smfSelectText(this);" class="codeoperation">' . $txt['code_select'] . '</a></div>' . ($context['browser']['is_gecko'] || $context['browser']['is_opera'] ? '<pre style="margin: 0; padding: 0;">' : '') . '<code class="bbc_code">$1</code>' . ($context['browser']['is_gecko'] || $context['browser']['is_opera'] ? '</pre>' : ''),
+				// !!! Maybe this can be simplified?
+				'validate' => isset($disabled['code']) ? null : create_function('&$tag, &$data, $disabled', '
+					global $context;
+
+					if (!isset($disabled[\'code\']))
+					{
+						$php_parts = preg_split(\'~(&lt;\?php|\?&gt;)~\', $data[0], -1, PREG_SPLIT_DELIM_CAPTURE);
+
+						for ($php_i = 0, $php_n = count($php_parts); $php_i < $php_n; $php_i++)
+						{
+							// Do PHP code coloring?
+							if ($php_parts[$php_i] != \'&lt;?php\')
+								continue;
+
+							$php_string = \'\';
+							while ($php_i + 1 < count($php_parts) && $php_parts[$php_i] != \'?&gt;\')
+							{
+								$php_string .= $php_parts[$php_i];
+								$php_parts[$php_i++] = \'\';
+							}
+							$php_parts[$php_i] = highlight_php_code($php_string . $php_parts[$php_i]);
+						}
+
+						// Fix the PHP code stuff...
+						$data[0] = str_replace("<pre style=\"display: inline;\">\t</pre>", "\t", implode(\'\', $php_parts));
+
+						// Older browsers are annoying, aren\'t they?
+						if ($context[\'browser\'][\'is_ie4\'] || $context[\'browser\'][\'is_ie5\'] || $context[\'browser\'][\'is_ie5.5\'])
+							$data[0] = str_replace("\t", "<pre style=\"display: inline;\">\t</pre>", $data[0]);
+						else
+							$data[0] = str_replace("\t", "<span style=\"white-space: pre;\">\t</span>", $data[0]);
+
+						// Recent Opera bug requiring temporary fix. &nsbp; is needed before </code> to avoid broken selection.
+						if ($context[\'browser\'][\'is_opera\'])
+							$data[0] .= \'&nbsp;\';
+					}'),
+				'block_level' => true,
+			),
+]]></search>
+			<add><![CDATA[
+			array(
+				'tag' => 'code',
+				'type' => 'unparsed_equals_content',
+				'content' => '$1',
+				// !!! Maybe this can be simplified?
+				'validate' => isset($disabled['code']) ? null : create_function('&$tag, &$data, $disabled', '
+					global $sourcedir, $settings, $txt;
+
+					$data[0] = strtr($data[0], array(
+						\'&#91;]\'			=> \'[]\', 
+						\'&#91;&#039;\'		=> \'[&#039;\', 
+						\'<br />\'			=> "\n",
+						)
+					);
+					$data[0] = un_htmlspecialchars($data[0]);
+					$data[1] = explode(\',\', $data[1]);
+
+					if (strpos($data[1][0], \'.\')) {
+						list($lang, $start_number) = explode(\'.\', $data[1][0]);
+					} else {
+						$lang = $data[1][0];
+						$start_number = 1;
+					}
+
+					if (!is_numeric($start_number))
+						$start_number = 1;
+
+					include_once($sourcedir . \'/geshi.php\');
+
+					$geshi = new Geshi($data[0], $lang);
+					if ($geshi->error()) {
+						$lang = "text";
+						$geshi->set_language($lang, true);
+					}
+                    $geshi->set_overall_class(\'geshi\');
+
+					$geshi->start_line_numbers_at($start_number);
+
+                    if(count($data[1]) > 1) {
+                    	array_filter($data[1], \'is_numeric\');
+                    	if (strlen(trim($settings[\'geshi_highlight_lines_extra_style\'])))
+							$geshi->set_highlight_lines_extra_style($settings[\'geshi_highlight_lines_extra_style\']);
+                    	$geshi->highlight_lines_extra($data[1]);
+                    }
+
+                    $geshi->set_overall_class(\'geshi\');
+					$geshi->set_header_type($settings[\'geshi_code_container\']);
+
+                    $geshi->enable_line_numbers($settings[\'geshi_line_numbers\'], $settings[\'geshi_fancy_line_number\']);
+                    $geshi->set_line_style($settings[\'geshi_line_style\'], $settings[\'geshi_line_style_fancy\']);
+
+					$pre_header = "";
+					if ($settings[\'geshi_enable_pre_header\']) {
+						$pre_header = \'<div class="codeheader">\' . str_replace(array("{CODE}", "{TAG}", "{LANGUAGE}"), array($txt[\'code\'], strtoupper($lang), $geshi->get_language_name()), $settings[\'geshi_pre_header\']) . "</div>";
+					}
+
+                    if ($settings[\'geshi_enable_header\']) {
+                        $geshi->set_header_content($settings[\'geshi_header\']);
+					}
+					
+                    if ($settings[\'geshi_enable_footer\']) {
+                        $geshi->set_footer_content($settings[\'geshi_footer\']);
+                    }
+
+					$data[0] = $pre_header . str_replace("\n", "", $geshi->parse_code());
+				'),
+				'block_level' => true,
+			),
+]]></add>
+		</operation>
+		<operation>
+			<search position="before"><![CDATA[
+			// Validation for my parking, please!
+			if (isset($tag['validate']))
+				$tag['validate']($tag, $data, $disabled);
+]]></search>
+			<add><![CDATA[
+			if(is_array($data[1]))
+				$data[1] = array_shift($data[1]);
+]]></add>
+		</operation>
+	</file>
+
+	<file name="$sourcedir/Who.php">
+		<operation>
+			<search position="before"><![CDATA[
+		'mods' => array(
+]]></search>
+			<add><![CDATA[
+			'cb|GeSHi-mod &copy; 2011, <a href="http://codebirth.com">codebirth</a>',
+]]></add>
+		</operation>
+	</file>
+
+	<file name="$themedir/Settings.template.php">
+		<operation>
+			<search position="before"><![CDATA[
+		array(
+			'id' => 'additional_options_collapsable',
+			'label' => $txt['additional_options_collapsable'],
+		),
+]]></search>
+			<add><![CDATA[
+	'',
+		array(
+			'id' => 'geshi_code_container',
+			'label' => $txt['geshi_code_container'],
+			'description' => $txt['geshi_code_container_desc'],
+			'options' => array(
+				0 => 'GESHI_HEADER_NONE',
+				1 => 'GESHI_HEADER_DIV',
+				2 => 'GESHI_HEADER_PRE',
+				3 => 'GESHI_HEADER_PRE_VALID',
+				4 => 'GESHI_HEADER_PRE_TABLE',
+			),
+			'type' => 'number',
+		),
+		array(
+			'id' => 'geshi_line_numbers',
+			'label' => $txt['geshi_line_numbers'],
+			'description' => $txt['geshi_line_numbers_desc'],
+			'options' => array(
+				0 => 'GESHI_NO_LINE_NUMBERS',
+				1 => 'GESHI_NORMAL_LINE_NUMBERS',
+				2 => 'GESHI_FANCY_LINE_NUMBERS',
+			),
+			'type' => 'number',
+		),
+		array(
+			'id' => 'geshi_fancy_line_number',
+			'label' => $txt['geshi_fancy_line_number'],
+			'description' => $txt['geshi_fancy_line_number_desc'],
+			'type' => 'number',
+			'size' => 2,
+		),
+		array(
+			'id' => 'geshi_line_style',
+			'label' => $txt['geshi_line_style'],
+			'description' => $txt['geshi_line_style_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_line_style_fancy',
+			'label' => $txt['geshi_line_style_fancy'],
+			'description' => $txt['geshi_line_style_fancy_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_highlight_lines_extra_style',
+			'label' => $txt['geshi_highlight_lines_extra_style'],
+			'description' => $txt['geshi_highlight_lines_extra_style_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_enable_pre_header',
+			'label' => $txt['geshi_enable_pre_header'],
+			'description' => $txt['geshi_enable_pre_header_desc'],
+		),
+		array(
+			'id' => 'geshi_pre_header',
+			'label' => $txt['geshi_pre_header'],
+			'description' => $txt['geshi_pre_header_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_enable_header',
+			'label' => $txt['geshi_enable_header'],
+			'description' => $txt['geshi_enable_header_desc'],
+		),
+		array(
+			'id' => 'geshi_header',
+			'label' => $txt['geshi_header'],
+			'description' => $txt['geshi_header_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_enable_footer',
+			'label' => $txt['geshi_enable_footer'],
+			'description' => $txt['geshi_enable_footer_desc'],
+		),
+		array(
+			'id' => 'geshi_footer',
+			'label' => $txt['geshi_footer'],
+			'description' => $txt['geshi_footer_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+		array(
+			'id' => 'geshi_enable_language_selector',
+			'label' => $txt['geshi_enable_language_selector'],
+			'description' => $txt['geshi_enable_language_selector_desc'],
+		),
+		array(
+			'id' => 'geshi_language_selector',
+			'label' => $txt['geshi_language_selector'],
+			'description' => $txt['geshi_language_selector_desc'],
+			'type' => 'text',
+			'size' => 50,
+		),
+]]></add>
+		</operation>
+	</file>
+
+	<file name="$themedir/GenericControls.template.php">
+		<operation>
+			<search position="before"><![CDATA[
+									\'white\': ', JavaScriptEscape($txt['white']), '
+								}
+							}';
+]]></search>
+			<add><![CDATA[
+
+					if ($settings['geshi_enable_language_selector']) {
+						$arrGLanguages = explode(',', $settings['geshi_language_selector']);
+						echo ',
+							{
+								sType: \'select\',
+								sName: \'sel_code\',
+								oOptions: {
+									\'\': ', JavaScriptEscape($txt['code']);
+						foreach ($arrGLanguages as $gLang) {
+							list($glCode, $glName) = explode(':', $gLang);
+							echo ',
+									\''. $glCode .'\': ', JavaScriptEscape($glName);
+						}
+						echo '
+								}
+							}';
+					}
+]]></add>
+		</operation>
+	</file>
+
+	<file name="$themedir/scripts/editor.js">
+		<operation>
+			<search position="before"><![CDATA[
+		else
+			this.smf_execCommand('forecolor', false, sValue);
+	}
+]]></search>
+			<add><![CDATA[
+	else if (oSelectProperties.sName == 'sel_code')
+	{
+		// Are we in boring mode?
+		if (!this.bRichTextEnabled)
+		{
+			surroundText('[code=' + sValue + ']', '[/code]', this.oTextHandle);
+			oSelectProperties.oSelect.selectedIndex = 0;
+		}
+	}
+]]></add>
+		</operation>
+	</file>
+
+	<file name="$themedir/css/index.css">
+		<operation>
+			<search position="end" />
+			<add><![CDATA[
+.geshi {
+	color: #000000;
+	background: #ffffff;
+	font-family: monospace;
+	font-size: 13px;
+	line-height: 18px;
+	border: 1px solid #aaaaaa;
+	margin: 1px auto 1px auto;
+	width: 99%;
+	white-space:normal;
+	white-space: pre;
+	white-space: pre-wrap;
+	white-space: -moz-pre-wrap;
+	white-space: -pre-wrap;
+	white-space: -o-pre-wrap;
+	word-wrap: break-word;
+	overflow: auto;
+	max-height: 306px;
+}
+]]></add>
+		</operation>
+	</file>
+</modification>
